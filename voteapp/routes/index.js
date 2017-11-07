@@ -14,44 +14,94 @@ connection.connect((error)=>{
 	}
 });
 
-/* GET home page. */
-router.get('/', function(req, res, next) {
-	if(req.session.name === undefined){
-		res.redirect('/login?msg=mustlogin');
-		// stop the callback in it's tracks
-		return;
-	}
+function start(){
+	return new Promise((resolve, reject)=>{
+		resolve([{userID:1}]);
+	});
+}
 
-	const getBands = new Promise((resolve, reject)=>{
-		// Go get the images...
-		var selectQuery = `SELECT * FROM bands;`;
-		connection.query(selectQuery,(error, results, fields)=>{
+function queryOne(results){
+	return new Promise((resolve, reject)=>{
+		const selectQuery = `SELECT * FROM users WHERE id = ?`;
+		connection.query(selectQuery,[results[0].userID], (error, results)=>{
 			if(error){
-				reject(error)
+				reject(error);
 			}else{
-				var rand = Math.floor(Math.random() * results.length);	
-				resolve(results[rand]);
-				// resolve({
-				// 	rand: rand,
-				// 	band: results[rand]
-				// })
-			}
+				resolve(results);
+			}		
 		});
 	});
+}
 
-	getBands.then(function(bandObj){
-		console.log(bandObj);
-		res.render('index', { 
-			name: req.session.name,
-			band: bandObj
-		});		
+function queryTwo(results){
+	return new Promise((resolve, reject)=>{
+		const selectQuery = `SELECT * FROM votes WHERE userID = ?`;
+		connection.query(selectQuery,[results[0].id],(error,results)=>{
+			if(error){
+				reject(error);
+			}else{
+				resolve(results);
+			}
+		})
 	});
-	getBands.catch((error)=>{
-		res.json(error);
-	})
+}
+
+// start()
+// 	.then((q1d)=>queryOne(q1d))
+// 	.then((q2d)=>queryTwo(q2d))
+// 	.then((q3d)=>queryOne(q3d))
+// 	.then((q4d)=>queryTwo(q4d))
+// 	.then((q5d)=>queryOne(q5d))
+// 	.then((q6d)=>queryTwo(q6d))
+// 	.then((q7d)=>console.log(q7d)
+// );
 
 
-});
+/* GET home page. */
+// router.get('/', function(req, res, next) {
+// 	if(req.session.name === undefined){
+// 		res.redirect('/login?msg=mustlogin');
+// 		// stop the callback in it's tracks
+// 		return;
+// 	}
+
+// 	const getBands = new Promise((resolve, reject)=>{
+// 		// Go get the images...
+// 		// Select all the images, THIS user has not voted on
+// 		// var selectQuery = `SELECT * FROM bands;`;
+// 		var selectSpecificBands = `
+// 			SELECT * FROM bands WHERE id NOT IN(
+// 				SELECT imageID FROM votes WHERE userID = ?
+// 			);
+// 		`
+// 		connection.query(selectSpecificBands,[req.session.uid],(error, results, fields)=>{
+// 			if(error){
+// 				reject(error)
+// 			}else{
+// 				var rand = Math.floor(Math.random() * results.length);	
+// 				resolve(results[rand]);
+// 				// resolve({
+// 				// 	rand: rand,
+// 				// 	band: results[rand]
+// 				// })
+// 			}
+// 		});
+// 	});
+
+// 	getBands.then(function(bandObj){
+// 		console.log(bandObj);
+// 		res.render('index', { 
+// 			name: req.session.name,
+// 			band: bandObj,
+// 			loggedIn: true
+// 		});		
+// 	});
+// 	getBands.catch((error)=>{
+// 		res.json(error);
+// 	})
+
+
+// });
 
 router.get('/register', (req,res,next)=>{
 	res.render('register',{});
@@ -103,6 +153,7 @@ router.get('/login', (req, res, next)=>{
 
 router.post('/loginProcess', (req, res, next)=>{
 	// res.json(req.body);
+	var name = req.body.name;
 	var email = req.body.email;
 	var password = req.body.password // English version from user
 	// write a query to check if the user is the DB
@@ -124,8 +175,9 @@ router.post('/loginProcess', (req, res, next)=>{
 					req.session.name = row.name;
 					req.session.uid = row.id;
 					req.session.email = row.email;
+					req.session.loggedIn = true;
 					console.log(req.session.uid)
-					res.redirect('/');
+					res.redirect('/?msg=loginSucces');
 				}else{
 					// user in db, but password is bad. Send them back to login
 					res.redirect('/login?msg=badPass');
